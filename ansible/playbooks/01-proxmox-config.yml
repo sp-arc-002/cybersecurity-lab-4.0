@@ -1,0 +1,4 @@
+# proxmox config playbook placeholder
+- hosts: proxmox
+  tasks:
+    - debug: msg="configure proxmox"

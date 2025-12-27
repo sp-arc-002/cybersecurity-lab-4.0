@@ -1,0 +1,4 @@
+# create vms placeholder
+- hosts: localhost
+  tasks:
+    - debug: msg="create vms"

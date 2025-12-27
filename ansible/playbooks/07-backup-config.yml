@@ -1,0 +1,4 @@
+# backup config placeholder
+- hosts: backup
+  tasks:
+    - debug: msg="backup config"

@@ -1,0 +1,8 @@
+# Placeholder GitHub Action: backup-configs
+name: backup-configs
+on: [push]
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "backup placeholder"

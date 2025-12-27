@@ -1,0 +1,4 @@
+# monitoring setup placeholder
+- hosts: monitoring
+  tasks:
+    - debug: msg="monitoring setup"

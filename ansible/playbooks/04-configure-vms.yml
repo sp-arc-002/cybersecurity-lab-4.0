@@ -1,0 +1,4 @@
+# configure vms placeholder
+- hosts: vms
+  tasks:
+    - debug: msg="configure vms"

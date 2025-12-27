@@ -1,0 +1,4 @@
+# security hardening placeholder
+- hosts: all
+  tasks:
+    - debug: msg="security hardening"

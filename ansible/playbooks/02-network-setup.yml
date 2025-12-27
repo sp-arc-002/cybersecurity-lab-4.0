@@ -1,0 +1,4 @@
+# network setup placeholder
+- hosts: network
+  tasks:
+    - debug: msg="network setup"

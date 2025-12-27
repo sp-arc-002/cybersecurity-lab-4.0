@@ -1,0 +1,3 @@
+# Architecture
+
+Network topology placeholder.

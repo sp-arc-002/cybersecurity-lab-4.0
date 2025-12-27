@@ -1,0 +1,4 @@
+# initial setup playbook placeholder
+- hosts: all
+  tasks:
+    - debug: msg="initial setup"

@@ -1,0 +1,8 @@
+# Placeholder GitHub Action: validate-configs
+name: validate-configs
+on: [push]
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "validate placeholder"

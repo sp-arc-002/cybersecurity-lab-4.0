@@ -1,0 +1,6 @@
+[Unit]
+Description=Backup service placeholder
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/backup-all.sh

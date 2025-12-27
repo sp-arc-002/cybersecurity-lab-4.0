@@ -1,0 +1,1 @@
+# SSP template placeholder

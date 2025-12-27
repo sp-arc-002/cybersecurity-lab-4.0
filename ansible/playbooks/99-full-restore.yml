@@ -1,0 +1,4 @@
+# full restore placeholder
+- hosts: localhost
+  tasks:
+    - debug: msg="full restore"
