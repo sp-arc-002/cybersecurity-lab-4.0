@@ -1,0 +1,5 @@
+---
+# Integration test placeholder
+- hosts: localhost
+  tasks:
+    - debug: msg="integration placeholder"

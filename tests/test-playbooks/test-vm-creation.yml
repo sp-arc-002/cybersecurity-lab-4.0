@@ -1,0 +1,5 @@
+---
+# Placeholder test for VM creation
+- hosts: localhost
+  tasks:
+    - debug: msg="vm creation test placeholder"

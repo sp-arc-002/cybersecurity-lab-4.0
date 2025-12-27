@@ -1,0 +1,4 @@
+---
+- hosts: proxmox
+  tasks:
+    - debug: msg="bootstrap proxmox placeholder"

@@ -1,0 +1,4 @@
+---
+- hosts: network
+  tasks:
+    - debug: msg="bootstrap networking placeholder"
