@@ -1,0 +1,10 @@
+name: Scheduled Backup Trigger
+on:
+  schedule:
+    - cron: '0 3 * * *' # daily at 03:00 UTC
+jobs:
+  trigger-backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Placeholder - trigger backup
+        run: echo "Triggering backup (placeholder)"

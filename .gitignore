@@ -1,3 +1,13 @@
-# gitignore placeholder
+# Ignore secrets, backups, logs, images, and local tooling
 secrets/
 backups/
+logs/
+*.iso
+*.img
+/.vault/
+.ansible/    
+.pytest_cache/
+__pycache__/
+.env
+.env.local
+/.vagrant/

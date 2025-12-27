@@ -1,0 +1,13 @@
+name: Security Scan
+on:
+  push:
+    paths:
+      - configs/**
+      - playbooks/**
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run basic security checks
+        run: echo "Security scan placeholder"
