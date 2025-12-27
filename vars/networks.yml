@@ -1,2 +1,792 @@
-# Network definitions placeholder
-networks: []
+---
+# ═══════════════════════════════════════════════════════════════════════
+# Network Definitions - VLAN Architecture
+# ═══════════════════════════════════════════════════════════════════════
+
+# ───────────────────────────────────────────────────────────────────────
+# BASE NETWORK INFORMATION
+# ───────────────────────────────────────────────────────────────────────
+network_info:
+  base_network: "172.16.0.0/12"
+  lab_domain: "lab.local"
+  
+  # External network (ISP → Parents' Router)
+  external:
+    isp_router: "192.168.1.1"
+    isp_network: "192.168.1.0/24"
+    isp_dhcp_range: "192.168.1.100-192.168.1.200"
+
+# ───────────────────────────────────────────────────────────────────────
+# VLAN DEFINITIONS
+# ───────────────────────────────────────────────────────────────────────
+vlans:
+  # ─────────────────────────────────────────────────────────────────────
+  # VLAN 1: Management / Out-of-Band
+  # ─────────────────────────────────────────────────────────────────────
+  management:
+    id: 1
+    name: "MGMT-OOB"
+    description: "Out-of-band management network"
+    
+    # Network
+    subnet: "172.16.2.0/24"
+    gateway: "172.16.2.1"
+    broadcast: "172.16.2.255"
+    netmask: "255.255.255.0"
+    
+    # DHCP
+    dhcp_enabled: true
+    dhcp_start: "172.16.2.100"
+    dhcp_end: "172.16.2.200"
+    dhcp_lease_time: "86400"  # 24 hours
+    
+    # Static reservations
+    static_hosts:
+      opnsense: "172.16.2.1"
+      proxmox: "172.16.2.10"
+      jump_box: "172.16.2.20"
+      cisco_switch: "172.16.2.254"
+    
+    # Security
+    internet_access: true
+    inter_vlan_routing: true
+    default_firewall_policy: "allow"
+    
+    # Services
+    services:
+      - "SSH"
+      - "HTTPS"
+      - "DNS"
+      - "DHCP"
+    
+    # Monitoring
+    syslog_enabled: true
+    span_monitoring: false
+  
+  # ─────────────────────────────────────────────────────────────────────
+  # VLAN 10: Blue Team / SIEM
+  # ─────────────────────────────────────────────────────────────────────
+  blue_team:
+    id: 10
+    name: "BLUE-TEAM-SIEM"
+    description: "Network defense, monitoring, and SIEM operations"
+    
+    # Network
+    subnet: "172.16.10.0/24"
+    gateway: "172.16.10.1"
+    broadcast: "172.16.10.255"
+    netmask: "255.255.255.0"
+    
+    # DHCP
+    dhcp_enabled: true
+    dhcp_start: "172.16.10.100"
+    dhcp_end: "172.16.10.200"
+    
+    # Static reservations
+    static_hosts:
+      security_onion: "172.16.10.10"
+    
+    # Security
+    internet_access: true
+    inter_vlan_routing: true
+    default_firewall_policy: "allow_outbound"
+    
+    # Firewall rules
+    firewall_rules:
+      - name: "Allow SIEM from all VLANs"
+        source: "any"
+        destination: "172.16.10.10"
+        ports: "443,514,5044,9200"
+        protocol: "tcp"
+        action: "allow"
+      
+      - name: "Allow outbound for updates"
+        source: "172.16.10.0/24"
+        destination: "any"
+        protocol: "any"
+        action: "allow"
+    
+    # Services
+    services:
+      - "SIEM (Security Onion)"
+      - "Elasticsearch"
+      - "Kibana"
+      - "Suricata IDS/IPS"
+      - "Zeek NSM"
+      - "Wazuh"
+    
+    # Monitoring
+    syslog_enabled: true
+    span_monitoring: true  # Receives SPAN traffic
+  
+  # ─────────────────────────────────────────────────────────────────────
+  # VLAN 20: Red Team / Offensive
+  # ─────────────────────────────────────────────────────────────────────
+  red_team:
+    id: 20
+    name: "RED-TEAM-OFFENSIVE"
+    description: "Offensive security operations and pentesting"
+    
+    # Network
+    subnet: "172.16.20.0/24"
+    gateway: "172.16.20.1"
+    broadcast: "172.16.20.255"
+    netmask: "255.255.255.0"
+    
+    # DHCP
+    dhcp_enabled: true
+    dhcp_start: "172.16.20.100"
+    dhcp_end: "172.16.20.200"
+    
+    # Static reservations
+    static_hosts:
+      blackarch: "172.16.20.10"
+      wifi_pineapple: "172.16.20.20"
+    
+    # Security
+    internet_access: true
+    inter_vlan_routing: "selective"  # Only to VLAN 30
+    default_firewall_policy: "allow_to_targets"
+    
+    # Firewall rules
+    firewall_rules:
+      - name: "Allow attacks on CORP_SIM"
+        source: "172.16.20.0/24"
+        destination: "172.16.30.0/24"
+        protocol: "any"
+        action: "allow"
+        log: true
+      
+      - name: "Block access to VAULT"
+        source: "172.16.20.0/24"
+        destination: "172.16.60.0/24"
+        protocol: "any"
+        action: "block"
+        log: true
+      
+      - name: "Block access to MALWARE_LAB"
+        source: "172.16.20.0/24"
+        destination: "172.16.40.0/24"
+        protocol: "any"
+        action: "block"
+        log: true
+      
+      - name: "Allow internet for tools"
+        source: "172.16.20.0/24"
+        destination: "!RFC1918"
+        protocol: "any"
+        action: "allow"
+    
+    # Services
+    services:
+      - "Penetration Testing"
+      - "Exploit Development"
+      - "C2 Infrastructure"
+      - "WiFi Auditing"
+    
+    # Monitoring
+    syslog_enabled: true
+    span_monitoring: true
+  
+  # ─────────────────────────────────────────────────────────────────────
+  # VLAN 30: Corporate Simulation
+  # ─────────────────────────────────────────────────────────────────────
+  corp_sim:
+    id: 30
+    name: "CORP-SIMULATION"
+    description: "Realistic enterprise environment for testing"
+    
+    # Network
+    subnet: "172.16.30.0/24"
+    gateway: "172.16.30.1"
+    broadcast: "172.16.30.255"
+    netmask: "255.255.255.0"
+    
+    # DHCP
+    dhcp_enabled: true
+    dhcp_start: "172.16.30.100"
+    dhcp_end: "172.16.30.200"
+    
+    # Static reservations
+    static_hosts:
+      rocky_linux: "172.16.30.10"
+    
+    # Security
+    internet_access: true
+    inter_vlan_routing: "limited"
+    default_firewall_policy: "block_lateral"
+    vulnerable_by_design: true  # Intentional for testing
+    
+    # Firewall rules
+    firewall_rules:
+      - name: "Allow inbound from RED_TEAM"
+        source: "172.16.20.0/24"
+        destination: "172.16.30.0/24"
+        protocol: "any"
+        action: "allow"
+        log: true
+      
+      - name: "Block all other inter-VLAN"
+        source: "172.16.30.0/24"
+        destination: "RFC1918"
+        protocol: "any"
+        action: "block"
+        log: true
+      
+      - name: "Allow internet"
+        source: "172.16.30.0/24"
+        destination: "!RFC1918"
+        protocol: "any"
+        action: "allow"
+    
+    # Services
+    services:
+      - "Active Directory (Samba)"
+      - "Web Server (Apache)"
+      - "Database (MariaDB)"
+      - "File Shares (SMB)"
+      - "SSH Bastion"
+    
+    # Monitoring
+    syslog_enabled: true
+    wazuh_agent: true
+    span_monitoring: true
+  
+  # ─────────────────────────────────────────────────────────────────────
+  # VLAN 40: Malware Lab - ISOLATED
+  # ─────────────────────────────────────────────────────────────────────
+  malware_lab:
+    id: 40
+    name: "MALWARE-LAB-ISOLATED"
+    description: "Isolated malware analysis environment"
+    
+    # Network
+    subnet: "172.16.40.0/24"
+    gateway: "172.16.40.1"
+    broadcast: "172.16.40.255"
+    netmask: "255.255.255.0"
+    
+    # DHCP
+    dhcp_enabled: true
+    dhcp_start: "172.16.40.100"
+    dhcp_end: "172.16.40.200"
+    
+    # Static reservations
+    static_hosts:
+      remnux: "172.16.40.10"
+    
+    # Security - CRITICAL
+    internet_access: false  # BLOCKED
+    inter_vlan_routing: "forensics_only"
+    default_firewall_policy: "deny_all"
+    isolated: true
+    
+    # Firewall rules
+    firewall_rules:
+      - name: "BLOCK ALL INTERNET"
+        source: "172.16.40.0/24"
+        destination: "!RFC1918"
+        protocol: "any"
+        action: "block"
+        log: true
+        priority: 1
+      
+      - name: "Allow ONLY to Forensics"
+        source: "172.16.40.0/24"
+        destination: "172.16.41.10"
+        ports: "22,445"
+        protocol: "tcp"
+        action: "allow"
+        log: true
+      
+      - name: "Allow FROM Forensics"
+        source: "172.16.41.10"
+        destination: "172.16.40.0/24"
+        ports: "22"
+        protocol: "tcp"
+        action: "allow"
+        log: true
+      
+      - name: "BLOCK EVERYTHING ELSE"
+        source: "172.16.40.0/24"
+        destination: "any"
+        protocol: "any"
+        action: "block"
+        log: true
+    
+    # Services
+    services:
+      - "Malware Analysis (REMnux)"
+      - "INetSim (Fake Services)"
+      - "FakeNet-NG"
+    
+    # Monitoring
+    syslog_enabled: true
+    span_monitoring: true
+    alert_on_any_egress: true  # Critical alert if traffic leaves
+  
+  # ─────────────────────────────────────────────────────────────────────
+  # VLAN 41: Forensics / Incident Response
+  # ─────────────────────────────────────────────────────────────────────
+  forensics:
+    id: 41
+    name: "FORENSICS-IR"
+    description: "Digital forensics and incident response"
+    
+    # Network
+    subnet: "172.16.41.0/24"
+    gateway: "172.16.41.1"
+    broadcast: "172.16.41.255"
+    netmask: "255.255.255.0"
+    
+    # DHCP
+    dhcp_enabled: true
+    dhcp_start: "172.16.41.100"
+    dhcp_end: "172.16.41.200"
+    
+    # Static reservations
+    static_hosts:
+      openbsd_ir: "172.16.41.10"
+    
+    # Security
+    internet_access: true
+    inter_vlan_routing: "selective"
+    default_firewall_policy: "allow_necessary"
+    
+    # Firewall rules
+    firewall_rules:
+      - name: "Allow internet for updates"
+        source: "172.16.41.0/24"
+        destination: "!RFC1918"
+        protocol: "any"
+        action: "allow"
+      
+      - name: "Allow read access to MALWARE_LAB"
+        source: "172.16.41.10"
+        destination: "172.16.40.10"
+        ports: "22,445"
+        protocol: "tcp"
+        action: "allow"
+        log: true
+      
+      - name: "Allow from Management"
+        source: "172.16.2.0/24"
+        destination: "172.16.41.0/24"
+        ports: "22"
+        protocol: "tcp"
+        action: "allow"
+    
+    # Services
+    services:
+      - "Digital Forensics"
+      - "Incident Response"
+      - "Evidence Storage"
+      - "Chain of Custody"
+    
+    # Monitoring
+    syslog_enabled: true
+    span_monitoring: true
+  
+  # ─────────────────────────────────────────────────────────────────────
+  # VLAN 60: Crypto Vault - AIR-GAPPED
+  # ─────────────────────────────────────────────────────────────────────
+  vault:
+    id: 60
+    name: "CRYPTO-VAULT-AIRGAP"
+    description: "Air-gapped cryptographic operations vault"
+    
+    # Network (assigned but not active)
+    subnet: "172.16.60.0/24"
+    gateway: "172.16.60.1"
+    broadcast: "172.16.60.255"
+    netmask: "255.255.255.0"
+    
+    # DHCP
+    dhcp_enabled: false  # No DHCP for air-gapped
+    
+    # Static reservations (not used unless temporarily enabled)
+    static_hosts:
+      openbsd_vault: "172.16.60.10"
+    
+    # Security - CRITICAL
+    internet_access: false  # NEVER
+    inter_vlan_routing: false  # NEVER
+    default_firewall_policy: "deny_all"
+    air_gapped: true
+    
+    # Firewall rules
+    firewall_rules:
+      - name: "BLOCK ALL INBOUND"
+        source: "any"
+        destination: "172.16.60.0/24"
+        protocol: "any"
+        action: "block"
+        log: true
+        priority: 1
+      
+      - name: "BLOCK ALL OUTBOUND"
+        source: "172.16.60.0/24"
+        destination: "any"
+        protocol: "any"
+        action: "block"
+        log: true
+        priority: 1
+    
+    # Services
+    services:
+      - "Key Generation"
+      - "Code Signing"
+      - "Cold Storage"
+      - "Offline Encryption"
+    
+    # Monitoring
+    syslog_enabled: false  # Can't send logs if air-gapped
+    span_monitoring: true  # Monitor for any traffic (should be ZERO)
+    alert_on_any_traffic: true  # Critical alert if ANY traffic detected
+  
+  # ─────────────────────────────────────────────────────────────────────
+  # VLAN 63: Development / Network Lab
+  # ─────────────────────────────────────────────────────────────────────
+  dev_network:
+    id: 63
+    name: "DEV-NETWORK-LAB"
+    description: "Development and network research"
+    
+    # Network
+    subnet: "172.16.63.0/24"
+    gateway: "172.16.63.1"
+    broadcast: "172.16.63.255"
+    netmask: "255.255.255.0"
+    
+    # DHCP
+    dhcp_enabled: true
+    dhcp_start: "172.16.63.100"
+    dhcp_end: "172.16.63.200"
+    
+    # Static reservations
+    static_hosts:
+      debian_dev: "172.16.63.10"
+      openbsd_network: "172.16.63.20"
+    
+    # Security
+    internet_access: true
+    inter_vlan_routing: "allow_most"
+    default_firewall_policy: "allow"
+    
+    # Firewall rules
+    firewall_rules:
+      - name: "Allow internet"
+        source: "172.16.63.0/24"
+        destination: "!RFC1918"
+        protocol: "any"
+        action: "allow"
+      
+      - name: "Block VAULT"
+        source: "172.16.63.0/24"
+        destination: "172.16.60.0/24"
+        protocol: "any"
+        action: "block"
+        log: true
+      
+      - name: "Block MALWARE_LAB"
+        source: "172.16.63.0/24"
+        destination: "172.16.40.0/24"
+        protocol: "any"
+        action: "block"
+        log: true
+      
+      - name: "Allow other VLANs"
+        source: "172.16.63.0/24"
+        destination: "RFC1918"
+        protocol: "any"
+        action: "allow"
+    
+    # Services
+    services:
+      - "Software Development"
+      - "Network Research"
+      - "pf Firewall Testing"
+      - "VPN Experiments"
+    
+    # Monitoring
+    syslog_enabled: true
+    span_monitoring: false
+
+# ───────────────────────────────────────────────────────────────────────
+# INTER-VLAN ROUTING MATRIX
+# ───────────────────────────────────────────────────────────────────────
+routing_matrix:
+  # Source → Destination: allow/block
+  
+  management:  # VLAN 1
+    blue_team: "allow"
+    red_team: "allow"
+    corp_sim: "allow"
+    malware_lab: "allow"
+    forensics: "allow"
+    vault: "allow"  # Temporary for updates only
+    dev_network: "allow"
+  
+  blue_team:  # VLAN 10
+    management: "allow"
+    red_team: "allow"
+    corp_sim: "allow"
+    malware_lab: "allow"
+    forensics: "allow"
+    vault: "allow"
+    dev_network: "allow"
+  
+  red_team:  # VLAN 20
+    management: "allow"
+    blue_team: "allow"
+    corp_sim: "allow"  # Primary attack target
+    malware_lab: "block"
+    forensics: "block"
+    vault: "block"
+    dev_network: "allow"
+  
+  corp_sim:  # VLAN 30
+    management: "allow"
+    blue_team: "allow"
+    red_team: "block"  # One-way (receives attacks)
+    malware_lab: "block"
+    forensics: "block"
+    vault: "block"
+    dev_network: "block"
+  
+  malware_lab:  # VLAN 40
+    management: "block"
+    blue_team: "block"
+    red_team: "block"
+    corp_sim: "block"
+    forensics: "allow"  # Only to forensics
+    vault: "block"
+    dev_network: "block"
+    internet: "block"  # CRITICAL
+  
+  forensics:  # VLAN 41
+    management: "allow"
+    blue_team: "allow"
+    red_team: "block"
+    corp_sim: "block"
+    malware_lab: "allow"  # Read access
+    vault: "block"
+    dev_network: "allow"
+  
+  vault:  # VLAN 60
+    management: "block"
+    blue_team: "block"
+    red_team: "block"
+    corp_sim: "block"
+    malware_lab: "block"
+    forensics: "block"
+    dev_network: "block"
+    internet: "block"  # AIR-GAPPED
+  
+  dev_network:  # VLAN 63
+    management: "allow"
+    blue_team: "allow"
+    red_team: "allow"
+    corp_sim: "allow"
+    malware_lab: "block"
+    forensics: "allow"
+    vault: "block"
+
+# ───────────────────────────────────────────────────────────────────────
+# DNS CONFIGURATION
+# ───────────────────────────────────────────────────────────────────────
+dns:
+  # Primary DNS (OPNsense)
+  primary: "172.16.2.1"
+  
+  # Fallback DNS
+  secondary: "1.1.1.1"  # Cloudflare
+  tertiary: "8.8.8.8"   # Google
+  
+  # Local domain
+  domain: "lab.local"
+  search_domains:
+    - "lab.local"
+  
+  # Static DNS entries
+  records:
+    # Infrastructure
+    - name: "opnsense.lab.local"
+      ip: "172.16.2.1"
+      type: "A"
+    
+    - name: "proxmox.lab.local"
+      ip: "172.16.2.10"
+      type: "A"
+    
+    - name: "switch.lab.local"
+      ip: "172.16.2.254"
+      type: "A"
+    
+    # VMs
+    - name: "security-onion.lab.local"
+      ip: "172.16.10.10"
+      type: "A"
+    
+    - name: "blackarch.lab.local"
+      ip: "172.16.20.10"
+      type: "A"
+    
+    - name: "rocky-linux.lab.local"
+      ip: "172.16.30.10"
+      type: "A"
+    
+    - name: "remnux.lab.local"
+      ip: "172.16.40.10"
+      type: "A"
+    
+    - name: "openbsd-ir.lab.local"
+      ip: "172.16.41.10"
+      type: "A"
+    
+    - name: "openbsd-vault.lab.local"
+      ip: "172.16.60.10"
+      type: "A"
+    
+    - name: "openbsd-network.lab.local"
+      ip: "172.16.63.20"
+      type: "A"
+    
+    - name: "jump-box.lab.local"
+      ip: "172.16.2.20"
+      type: "A"
+    
+    # Aliases
+    - name: "siem.lab.local"
+      target: "security-onion.lab.local"
+      type: "CNAME"
+    
+    - name: "firewall.lab.local"
+      target: "opnsense.lab.local"
+      type: "CNAME"
+
+# ───────────────────────────────────────────────────────────────────────
+# NTP CONFIGURATION
+# ───────────────────────────────────────────────────────────────────────
+ntp:
+  # Primary NTP (OPNsense)
+  primary: "172.16.2.1"
+  
+  # Fallback NTP
+  pool_servers:
+    - "0.pool.ntp.org"
+    - "1.pool.ntp.org"
+    - "2.pool.ntp.org"
+  
+  # Timezone
+  timezone: "America/Chicago"
+
+# ───────────────────────────────────────────────────────────────────────
+# SPAN / PORT MIRRORING
+# ───────────────────────────────────────────────────────────────────────
+span:
+  enabled: true
+  
+  # Source VLANs (traffic to mirror)
+  source_vlans:
+    - 10  # Blue Team
+    - 20  # Red Team
+    - 30  # Corp Sim
+    - 40  # Malware Lab
+    - 41  # Forensics
+    - 60  # Vault (should be zero traffic)
+    - 63  # Dev/Network
+  
+  # Destination (Security Onion monitoring interface)
+  destination_port: "GigabitEthernet0/12"
+  destination_host: "172.16.10.10"
+  destination_interface: "eth1"
+  
+  # What to monitor
+  direction: "both"  # RX + TX
+  encapsulation: "native"  # Untagged
+
+# ───────────────────────────────────────────────────────────────────────
+# TAILSCALE OVERLAY NETWORK
+# ───────────────────────────────────────────────────────────────────────
+tailscale:
+  enabled: true
+  network: "100.64.0.0/10"
+  
+  # Nodes
+  nodes:
+    # Infrastructure
+    opnsense:
+      tailscale_ip: "100.64.2.1"
+      advertise_routes: "172.16.0.0/12"
+      exit_node: false
+    
+    proxmox:
+      tailscale_ip: "100.64.2.10"
+      advertise_routes: false
+    
+    # VMs
+    security_onion:
+      tailscale_ip: "100.64.10.10"
+      hostname: "security-onion"
+    
+    blackarch:
+      tailscale_ip: "100.64.20.10"
+      hostname: "blackarch"
+    
+    openbsd_ir:
+      tailscale_ip: "100.64.41.10"
+      hostname: "openbsd-ir"
+    
+    openbsd_network:
+      tailscale_ip: "100.64.63.20"
+      hostname: "openbsd-network"
+    
+    jump_box:
+      tailscale_ip: "100.64.2.20"
+      hostname: "jump-box"
+    
+    # Mobile devices
+    macbook:
+      tailscale_ip: "100.64.1.10"
+      hostname: "macbook-pro"
+    
+    t480_qubes:
+      tailscale_ip: "100.64.1.20"
+      hostname: "t480-qubes"
+  
+  # MagicDNS
+  magic_dns: true
+  
+  # SSH over Tailscale
+  ssh_enabled: true
+
+# ───────────────────────────────────────────────────────────────────────
+# NOTES
+# ───────────────────────────────────────────────────────────────────────
+notes: |
+  Network Architecture Summary:
+  
+  Base: 172.16.0.0/12 (covers all subnets)
+  Pattern: 172.16.X.0/24 where X = VLAN ID
+  
+  Critical Security Zones:
+  - VLAN 40 (Malware Lab): NO INTERNET, isolated
+  - VLAN 60 (Vault): AIR-GAPPED, no network
+  
+  Traffic Flow:
+  Internet → Parents' Router (192.168.1.1)
+         → OPNsense WAN (192.168.1.50)
+         → OPNsense LAN (172.16.2.1)
+         → Cisco Switch (VLAN trunk)
+         → Proxmox VMs (VLAN-tagged)
+  
+  Monitoring:
+  - Security Onion receives SPAN from all VLANs
+  - All VMs log to Security Onion (172.16.10.10)
+  - Wazuh agents on critical systems
+  
+  Remote Access:
+  - Tailscale overlay (100.64.0.0/10)
+  - OPNsense advertises subnet routes
+  - MagicDNS for easy access

@@ -1,1 +1,679 @@
-# proxmox-p520 specific vars
+---
+# ═══════════════════════════════════════════════════════════════════════
+# Proxmox P520 Host-Specific Variables
+# ═══════════════════════════════════════════════════════════════════════
+
+# ───────────────────────────────────────────────────────────────────────
+# BASIC HOST INFORMATION
+# ───────────────────────────────────────────────────────────────────────
+ansible_host: 172.16.2.10
+ansible_user: root
+ansible_port: 22
+ansible_connection: ssh
+ansible_python_interpreter: /usr/bin/python3
+
+# Host identification
+hostname: pve
+fqdn: pve.lab.local
+domain: lab.local
+
+# Location
+datacenter: homelab
+rack: desk
+location: "Pearland, Texas, US"
+
+# ───────────────────────────────────────────────────────────────────────
+# HARDWARE SPECIFICATIONS
+# ───────────────────────────────────────────────────────────────────────
+hardware:
+  manufacturer: Lenovo
+  model: "ThinkStation P520"
+  serial_number: "{{ vault_p520_serial }}"  # Store in vault
+  
+  # CPU
+  cpu:
+    manufacturer: Intel
+    model: "Xeon W-2135"
+    architecture: x86_64
+    cores: 6
+    threads: 12
+    base_clock_ghz: 3.7
+    turbo_clock_ghz: 4.5
+    cache_mb: 8.25
+    tdp_watts: 140
+    features:
+      - "Intel VT-x"
+      - "Intel VT-d"
+      - "AES-NI"
+      - "Hyper-Threading"
+  
+  # Memory
+  memory:
+    total_gb: 64
+    type: "DDR4 ECC RDIMM"
+    speed_mhz: 2666
+    channels: 4
+    slots_populated: 4
+    slots_total: 4
+    dimm_capacity_gb: 16
+    ecc: true
+  
+  # Storage
+  storage:
+    total_capacity_gb: 4096  # 4TB
+    
+    drives:
+      - name: /dev/nvme0n1
+        type: NVMe
+        model: "Samsung 970 EVO Plus"
+        capacity_gb: 1024
+        interface: "PCIe 3.0 x4"
+        use: "ZFS pool (performance, critical)"
+      
+      - name: /dev/nvme1n1
+        type: NVMe
+        model: "Samsung 970 EVO Plus"
+        capacity_gb: 1024
+        interface: "PCIe 3.0 x4"
+        use: "ZFS pool (bulk-pool-1, bulk-pool-2)"
+      
+      - name: /dev/sda
+        type: SSD
+        model: "Crucial MX500"
+        capacity_gb: 1024
+        interface: SATA
+        use: "ZFS pool (bulk-pool-1)"
+      
+      - name: /dev/sdb
+        type: SSD
+        model: "Crucial MX500"
+        capacity_gb: 1024
+        interface: SATA
+        use: "ZFS pool (bulk-pool-2)"
+  
+  # Network
+  network:
+    nics:
+      - name: eno1
+        type: onboard
+        model: "Intel I210"
+        speed_gbps: 1
+        mac_address: "{{ vault_p520_mac_address }}"
+        connected_to: "Cisco Switch Gi0/2"
+        vlan_aware: true
+  
+  # Expansion
+  pcie_slots:
+    - slot: 1
+      type: "PCIe 3.0 x16"
+      populated: false
+      available_for: "GPU passthrough (future)"
+    
+    - slot: 2
+      type: "PCIe 3.0 x8"
+      populated: false
+      available_for: "Additional NIC"
+    
+    - slot: 3
+      type: "PCIe 3.0 x4"
+      populated: true
+      device: "NVMe adapter"
+  
+  # Power
+  psu:
+    wattage: 400
+    efficiency: "80 Plus Gold"
+    redundant: false
+
+# ───────────────────────────────────────────────────────────────────────
+# BIOS CONFIGURATION
+# ───────────────────────────────────────────────────────────────────────
+bios:
+  version: "{{ vault_bios_version }}"
+  date: "{{ vault_bios_date }}"
+  
+  # Critical settings for virtualization
+  settings:
+    intel_vt_x: enabled
+    intel_vt_d: enabled
+    sr_iov: enabled
+    hyper_threading: enabled
+    secure_boot: disabled
+    uefi_boot: enabled
+    tpm: enabled
+    
+    # Power management
+    wake_on_lan: enabled
+    auto_power_on: enabled
+    power_on_after_fail: power_on
+
+# ───────────────────────────────────────────────────────────────────────
+# PROXMOX INSTALLATION
+# ───────────────────────────────────────────────────────────────────────
+proxmox:
+  version: "8.3"
+  kernel: "6.8"
+  
+  # Cluster (single node)
+  cluster:
+    enabled: false
+    name: "homelab-cluster"
+    nodes: 1
+  
+  # High availability
+  ha:
+    enabled: false
+  
+  # Subscription
+  subscription:
+    type: "no-subscription"
+    enterprise_repo: disabled
+
+# ───────────────────────────────────────────────────────────────────────
+# NETWORK CONFIGURATION
+# ───────────────────────────────────────────────────────────────────────
+network:
+  # Management interface
+  management:
+    interface: vmbr0
+    type: bridge
+    address: 172.16.2.10
+    netmask: 255.255.255.0
+    gateway: 172.16.2.1
+    bridge_ports: eno1
+    bridge_stp: off
+    bridge_fd: 0
+    
+    # VLAN awareness
+    bridge_vlan_aware: yes
+    bridge_vids: "2-4094"
+  
+  # DNS
+  dns:
+    nameservers:
+      - 172.16.2.1     # OPNsense
+      - 1.1.1.1        # Cloudflare
+      - 8.8.8.8        # Google
+    search:
+      - lab.local
+  
+  # Static routes (if needed)
+  static_routes: []
+  
+  # Firewall
+  firewall:
+    enabled: true
+    default_policy: DROP
+    
+    # Rules
+    rules:
+      - name: "Allow SSH from management"
+        direction: IN
+        action: ACCEPT
+        proto: tcp
+        dport: 22
+        source: 172.16.2.0/24
+        log: nolog
+      
+      - name: "Allow Proxmox web GUI"
+        direction: IN
+        action: ACCEPT
+        proto: tcp
+        dport: 8006
+        source: 172.16.2.0/24
+        log: nolog
+      
+      - name: "Allow Tailscale"
+        direction: IN
+        action: ACCEPT
+        proto: udp
+        dport: 41641
+        source: 0.0.0.0/0
+        log: nolog
+      
+      - name: "Allow ICMP"
+        direction: IN
+        action: ACCEPT
+        proto: icmp
+        log: nolog
+      
+      - name: "Allow established"
+        direction: IN
+        action: ACCEPT
+        proto: all
+        state: ESTABLISHED,RELATED
+        log: nolog
+
+# ───────────────────────────────────────────────────────────────────────
+# ZFS CONFIGURATION
+# ───────────────────────────────────────────────────────────────────────
+zfs:
+  # ARC limits
+  arc_max_bytes: 17179869184  # 16GB
+  arc_min_bytes: 4294967296   # 4GB
+  
+  # Pools
+  pools:
+    # Performance pool (NVMe)
+    performance:
+      name: performance
+      vdevs:
+        - type: stripe
+          devices:
+            - /dev/disk/by-id/nvme-Samsung_SSD_970_EVO_Plus_1TB_XXXXX
+      mountpoint: /performance
+      atime: off
+      compression: lz4
+      recordsize: 128k
+      xattr: sa
+      acltype: posixacl
+      purpose: "Fast I/O for BlackArch, Debian Dev, Jump Box"
+      quota: 400G
+    
+    # Critical pool (NVMe, encrypted)
+    critical:
+      name: critical
+      vdevs:
+        - type: stripe
+          devices:
+            - /dev/disk/by-id/nvme-Samsung_SSD_970_EVO_Plus_1TB_YYYYY
+      mountpoint: /critical
+      atime: off
+      compression: lz4
+      encryption: aes-256-gcm
+      keyformat: passphrase
+      keylocation: "file:///root/.zfs_keys/critical.key"
+      recordsize: 128k
+      xattr: sa
+      acltype: posixacl
+      purpose: "OpenBSD IR evidence, OpenBSD Vault, backups"
+      quota: 1.5T
+    
+    # Bulk pool 1 (Mixed NVMe + SSD)
+    bulk-pool-1:
+      name: bulk-pool-1
+      vdevs:
+        - type: stripe
+          devices:
+            - /dev/disk/by-id/ata-Crucial_CT1000MX500SSD1_XXXXX
+      mountpoint: /bulk-pool-1
+      atime: off
+      compression: lz4
+      recordsize: 128k
+      xattr: sa
+      acltype: posixacl
+      purpose: "Security Onion, Rocky Linux, logs, PCAPs"
+      quota: 1T
+    
+    # Bulk pool 2 (SSD)
+    bulk-pool-2:
+      name: bulk-pool-2
+      vdevs:
+        - type: stripe
+          devices:
+            - /dev/disk/by-id/ata-Crucial_CT1000MX500SSD1_YYYYY
+      mountpoint: /bulk-pool-2
+      atime: off
+      compression: lz4
+      recordsize: 128k
+      xattr: sa
+      acltype: posixacl
+      purpose: "REMnux, OpenBSD Network, ISOs, templates"
+      quota: 1T
+  
+  # Datasets
+  datasets:
+    # Proxmox storage
+    - name: performance/images
+      mountpoint: /performance/images
+      purpose: "VM disks on performance pool"
+    
+    - name: critical/images
+      mountpoint: /critical/images
+      purpose: "VM disks on critical pool"
+    
+    - name: critical/backup
+      mountpoint: /critical/backup
+      purpose: "VM backups"
+      compression: gzip-9
+    
+    - name: bulk-pool-1/images
+      mountpoint: /bulk-pool-1/images
+      purpose: "VM disks on bulk-pool-1"
+    
+    - name: bulk-pool-2/images
+      mountpoint: /bulk-pool-2/images
+      purpose: "VM disks on bulk-pool-2"
+    
+    - name: bulk-pool-2/iso
+      mountpoint: /bulk-pool-2/iso
+      purpose: "ISO images"
+    
+    - name: bulk-pool-2/template
+      mountpoint: /bulk-pool-2/template
+      purpose: "Container templates"
+  
+  # Scrub schedule
+  scrub:
+    enabled: true
+    schedule: "monthly"
+    day: "first sunday"
+    time: "04:00"
+
+# ───────────────────────────────────────────────────────────────────────
+# STORAGE CONFIGURATION
+# ───────────────────────────────────────────────────────────────────────
+storage:
+  # Local storage (Proxmox root)
+  local:
+    type: dir
+    content:
+      - vztmpl
+      - iso
+    path: /var/lib/vz
+    maxfiles: 3
+  
+  local-lvm:
+    type: lvm
+    content:
+      - images
+      - rootdir
+    disabled: true  # Using ZFS instead
+  
+  # ZFS storage
+  performance:
+    type: zfspool
+    pool: performance
+    content:
+      - images
+      - rootdir
+    nodes: pve
+    sparse: false
+  
+  critical:
+    type: zfspool
+    pool: critical
+    content:
+      - images
+      - rootdir
+      - backup
+    nodes: pve
+    sparse: false
+  
+  bulk-pool-1:
+    type: zfspool
+    pool: bulk-pool-1
+    content:
+      - images
+      - rootdir
+    nodes: pve
+    sparse: false
+  
+  bulk-pool-2:
+    type: zfspool
+    pool: bulk-pool-2
+    content:
+      - images
+      - rootdir
+      - iso
+      - vztmpl
+    nodes: pve
+    sparse: false
+
+# ───────────────────────────────────────────────────────────────────────
+# RESOURCE ALLOCATION
+# ───────────────────────────────────────────────────────────────────────
+resources:
+  # CPU allocation
+  cpu:
+    total_cores: 6
+    total_threads: 12
+    reserved_for_host: 1  # Reserve 1 thread
+    available_for_vms: 11
+    overcommit_ratio: 2.7  # 30 vCPUs / 11 threads
+  
+  # Memory allocation
+  memory:
+    total_gb: 64
+    reserved_for_host_gb: 8
+    reserved_for_zfs_arc_gb: 16
+    available_for_vms_gb: 40  # Conservative (56GB possible but tight)
+  
+  # Storage allocation
+  storage:
+    total_tb: 4
+    allocated_for_vms_gb: 2974  # ~3TB
+    reserved_for_snapshots_gb: 512
+    reserved_for_backups_gb: 512
+
+# ───────────────────────────────────────────────────────────────────────
+# BACKUP CONFIGURATION
+# ───────────────────────────────────────────────────────────────────────
+backup:
+  enabled: true
+  storage: critical
+  directory: /critical/backup
+  
+  # Compression
+  compression: lzo
+  
+  # Schedules
+  schedules:
+    daily:
+      enabled: true
+      time: "02:00"
+      dow: "*"  # Every day
+      retention: 7
+      mode: snapshot
+      vms:
+        - 110  # Security Onion
+        - 120  # BlackArch
+        - 141  # OpenBSD IR
+        - 101  # Jump Box
+    
+    weekly:
+      enabled: true
+      time: "03:00"
+      dow: "sun"
+      retention: 4
+      mode: snapshot
+      vms: all
+    
+    monthly:
+      enabled: true
+      time: "04:00"
+      day: 1
+      retention: 3
+      mode: stop
+      vms:
+        - 141  # OpenBSD IR (evidence)
+        - 110  # Security Onion (logs)
+  
+  # Exclusions
+  exclude_vms:
+    - 160  # OpenBSD Vault (external storage)
+  
+  # Notifications
+  notify:
+    enabled: false  # Enable when email configured
+    email: ""
+
+# ───────────────────────────────────────────────────────────────────────
+# MONITORING
+# ───────────────────────────────────────────────────────────────────────
+monitoring:
+  # Syslog forwarding
+  syslog:
+    enabled: true
+    remote_host: 172.16.10.10  # Security Onion
+    remote_port: 514
+    protocol: udp
+  
+  # SNMP
+  snmp:
+    enabled: false
+    version: 3
+    community: ""
+  
+  # Email alerts
+  email:
+    enabled: false
+    smtp_server: ""
+    from: ""
+    to: ""
+  
+  # Prometheus
+  prometheus:
+    enabled: false
+    port: 9100
+
+# ───────────────────────────────────────────────────────────────────────
+# SECURITY
+# ───────────────────────────────────────────────────────────────────────
+security:
+  # SSH
+  ssh:
+    port: 22
+    permit_root_login: "prohibit-password"
+    password_authentication: false
+    pubkey_authentication: true
+    authorized_keys:
+      - "{{ vault_ssh_public_key_1 }}"
+      - "{{ vault_ssh_public_key_2 }}"
+  
+  # Fail2ban
+  fail2ban:
+    enabled: true
+    bantime: 3600
+    maxretry: 3
+    jails:
+      - sshd
+      - proxmox
+  
+  # Automatic updates
+  unattended_upgrades:
+    enabled: true
+    auto_reboot: false
+    reboot_time: "05:00"
+  
+  # Two-factor authentication
+  two_factor:
+    enabled: false  # Enable if needed
+    method: totp
+  
+  # API security
+  api:
+    tokens:
+      - id: ansible
+        user: root@pam
+        comment: "Ansible automation token"
+        expire: 0  # Never expire
+        privsep: 1
+
+# ───────────────────────────────────────────────────────────────────────
+# TAILSCALE
+# ───────────────────────────────────────────────────────────────────────
+tailscale:
+  enabled: true
+  version: latest
+  hostname: proxmox-p520
+  advertise_routes: "172.16.0.0/12"
+  accept_routes: true
+  ssh: true
+  exit_node: false
+  auth_key: "{{ vault_tailscale_auth_key }}"
+
+# ───────────────────────────────────────────────────────────────────────
+# PERFORMANCE TUNING
+# ───────────────────────────────────────────────────────────────────────
+performance:
+  # Kernel parameters
+  sysctl:
+    # Network performance
+    net.core.rmem_max: 134217728
+    net.core.wmem_max: 134217728
+    net.ipv4.tcp_rmem: "4096 87380 67108864"
+    net.ipv4.tcp_wmem: "4096 65536 67108864"
+    net.core.netdev_max_backlog: 5000
+    net.ipv4.tcp_congestion_control: bbr
+    
+    # Virtual memory
+    vm.swappiness: 10
+    vm.dirty_ratio: 10
+    vm.dirty_background_ratio: 5
+    vm.min_free_kbytes: 262144
+    
+    # ZFS ARC
+    vm.vfs_cache_pressure: 50
+    
+    # File descriptors
+    fs.file-max: 2097152
+  
+  # CPU governor
+  cpu_governor: performance
+  
+  # I/O scheduler
+  io_scheduler:
+    nvme: none  # NVMe doesn't need scheduler
+    ssd: mq-deadline
+    hdd: mq-deadline
+  
+  # Transparent huge pages
+  transparent_hugepages: madvise
+
+# ───────────────────────────────────────────────────────────────────────
+# MAINTENANCE
+# ───────────────────────────────────────────────────────────────────────
+maintenance:
+  # Update schedule
+  updates:
+    schedule: "Sunday 02:00"
+    auto_update: false
+    auto_reboot: false
+  
+  # ZFS scrub
+  zfs_scrub:
+    schedule: "First Sunday 04:00"
+    duration_hours: 4
+  
+  # Cleanup
+  cleanup:
+    old_kernels: true
+    keep_kernels: 2
+    old_logs: true
+    log_retention_days: 30
+  
+  # Health checks
+  health_checks:
+    zfs_status: daily
+    smart_tests: weekly
+    memory_test: monthly
+
+# ───────────────────────────────────────────────────────────────────────
+# NOTES
+# ───────────────────────────────────────────────────────────────────────
+notes: |
+  Lenovo ThinkStation P520 - Proxmox Hypervisor
+  
+  Access:
+  - Web GUI: https://172.16.2.10:8006
+  - SSH: ssh root@172.16.2.10
+  - Tailscale: ssh proxmox-p520
+  
+  Performance:
+  - 6 physical cores / 12 threads
+  - ~2.7:1 CPU overcommit (30 vCPUs allocated)
+  - 64GB RAM (40GB for VMs, 16GB ARC, 8GB host)
+  - 4TB ZFS across 4 pools
+  
+  Critical:
+  - RAM is the constraint (not all VMs run simultaneously)
+  - ZFS ARC limited to 16GB to preserve VM memory
+  - Always snapshot before risky operations
+  - Monitor memory pressure closely
+  
+  Storage Strategy:
+  - performance: Fast I/O (NVMe)
+  - critical: Encrypted evidence (NVMe)
+  - bulk-pool-1: Logs, PCAPs (SSD)
+  - bulk-pool-2: Malware, ISOs (SSD)# proxmox-p520 specific vars

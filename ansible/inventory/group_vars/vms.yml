@@ -1,1 +1,574 @@
-# vms variables placeholder
+---
+# ═══════════════════════════════════════════════════════════════════════
+# VM-Specific Variables (All VMs)
+# ═══════════════════════════════════════════════════════════════════════
+
+# ───────────────────────────────────────────────────────────────────────
+# VM DEFAULTS (Applied to all VMs unless overridden)
+# ───────────────────────────────────────────────────────────────────────
+vm_defaults:
+  # QEMU/KVM settings
+  ostype: "l26"
+  cpu: "host"
+  sockets: 1
+  numa: false
+  
+  # Boot configuration
+  boot: "order=scsi0"
+  bootdisk: "scsi0"
+  scsihw: "virtio-scsi-pci"
+  
+  # Network
+  net_model: "virtio"
+  net_bridge: "vmbr0"
+  net_firewall: true
+  
+  # Features
+  agent: true  # QEMU guest agent
+  onboot: false  # Don't auto-start VMs (manual control)
+  
+  # Disk settings
+  disk_cache: "none"
+  disk_format: "raw"
+  disk_iothread: true
+  
+  # Other
+  balloon: 0  # Disable memory ballooning for predictable performance
+  hotplug: "network,disk,usb"
+
+# ───────────────────────────────────────────────────────────────────────
+# VM SPECIFICATIONS (Detailed Configuration)
+# ───────────────────────────────────────────────────────────────────────
+vms:
+  # ─────────────────────────────────────────────────────────────────────
+  # VM 110: Security Onion - Network Defense Hub
+  # ─────────────────────────────────────────────────────────────────────
+  security_onion:
+    vm_id: 110
+    name: "security-onion"
+    hostname: "security-onion.lab.local"
+    
+    # Resources
+    cores: 6
+    memory: 12288  # 12GB (reduced from 16GB due to RAM constraints)
+    
+    # Storage
+    disk:
+      size: 500
+      storage: "bulk-pool-1"
+      format: "raw"
+      cache: "none"
+    
+    # Network
+    vlan: 10
+    ip_address: "172.16.10.10/24"
+    gateway: "172.16.10.1"
+    
+    # Additional NICs
+    net1:
+      enabled: true
+      model: "virtio"
+      bridge: "vmbr0"
+      firewall: false
+      purpose: "SPAN monitoring (promiscuous mode)"
+    
+    # OS
+    os: "ubuntu"
+    os_version: "22.04"
+    iso: "securityonion-2.4.iso"
+    
+    # Services
+    services:
+      - "suricata"
+      - "zeek"
+      - "elasticsearch"
+      - "kibana"
+      - "stenographer"
+      - "wazuh"
+    
+    # Boot priority
+    onboot: true  # Always start Security Onion (critical for monitoring)
+    
+    # Tailscale
+    tailscale_enabled: true
+    tailscale_hostname: "security-onion"
+    
+    # Backup
+    backup: true
+    backup_schedule: "daily"
+  
+  # ─────────────────────────────────────────────────────────────────────
+  # VM 120: BlackArch - Offensive Security + Exploit Development
+  # ─────────────────────────────────────────────────────────────────────
+  blackarch:
+    vm_id: 120
+    name: "blackarch"
+    hostname: "blackarch.lab.local"
+    
+    # Resources
+    cores: 8
+    memory: 16384  # 16GB for CLion + compilation
+    
+    # Storage
+    disk:
+      size: 400
+      storage: "performance"
+      format: "raw"
+      cache: "none"
+    
+    # Network
+    vlan: 20
+    ip_address: "172.16.20.10/24"
+    gateway: "172.16.20.1"
+    
+    # OS
+    os: "blackarch"
+    iso: "blackarch-linux-live-2024.iso"
+    
+    # Capabilities
+    purpose:
+      - "penetration_testing"
+      - "exploit_development"
+      - "reverse_engineering"
+      - "c2_infrastructure"
+    
+    # Tailscale
+    tailscale_enabled: true
+    tailscale_hostname: "blackarch"
+    
+    # Backup
+    backup: true
+    backup_schedule: "daily"
+  
+  # ─────────────────────────────────────────────────────────────────────
+  # VM 130: Rocky Linux - Corporate Simulation
+  # ─────────────────────────────────────────────────────────────────────
+  rocky_linux:
+    vm_id: 130
+    name: "rocky-linux"
+    hostname: "rocky-linux.lab.local"
+    
+    # Resources
+    cores: 2
+    memory: 6144  # 6GB (reduced from 8GB)
+    
+    # Storage
+    disk:
+      size: 100
+      storage: "bulk-pool-1"
+      format: "raw"
+    
+    # Network
+    vlan: 30
+    ip_address: "172.16.30.10/24"
+    gateway: "172.16.30.1"
+    
+    # OS
+    os: "rocky"
+    os_version: "9"
+    iso: "Rocky-9-latest-x86_64-minimal.iso"
+    
+    # Purpose
+    purpose: "attack_target"
+    vulnerable: true  # Intentionally misconfigured for testing
+    
+    # Services to deploy
+    services:
+      - "samba_ad"
+      - "apache"
+      - "mariadb"
+      - "ssh"
+      - "smb"
+    
+    # Monitoring
+    wazuh_agent: true
+    
+    # Tailscale
+    tailscale_enabled: false  # Simulates isolated corp network
+    
+    # Backup
+    backup: true
+    backup_schedule: "weekly"
+  
+  # ─────────────────────────────────────────────────────────────────────
+  # VM 140: REMnux - Malware Analysis Lab
+  # ─────────────────────────────────────────────────────────────────────
+  remnux:
+    vm_id: 140
+    name: "remnux"
+    hostname: "remnux.lab.local"
+    
+    # Resources
+    cores: 4
+    memory: 8192  # 8GB
+    
+    # Storage
+    disk:
+      size: 200
+      storage: "bulk-pool-2"
+      format: "raw"
+    
+    # Network
+    vlan: 40
+    ip_address: "172.16.40.10/24"
+    gateway: "172.16.40.1"
+    
+    # CRITICAL: Isolated
+    internet_access: false
+    isolated: true
+    
+    # OS
+    os: "ubuntu"
+    os_version: "22.04"
+    iso: "remnux-7.0.ova"
+    
+    # Safety features
+    snapshot_before_use: true
+    clipboard_isolation: true
+    shared_folders: false
+    nested_virtualization: false
+    
+    # Tailscale
+    tailscale_enabled: false  # NEVER enable
+    
+    # Backup
+    backup: true
+    backup_schedule: "weekly"
+    backup_compression: "gzip-9"
+  
+  # ─────────────────────────────────────────────────────────────────────
+  # VM 141: OpenBSD IR - Digital Forensics
+  # ─────────────────────────────────────────────────────────────────────
+  openbsd_ir:
+    vm_id: 141
+    name: "openbsd-ir"
+    hostname: "openbsd-ir.lab.local"
+    
+    # Resources
+    cores: 4
+    memory: 10240  # 10GB (reduced from 16GB)
+    
+    # Storage
+    disk:
+      size: 1024  # 1TB for evidence storage
+      storage: "critical"
+      format: "raw"
+    
+    # Network
+    vlan: 41
+    ip_address: "172.16.41.10/24"
+    gateway: "172.16.41.1"
+    
+    # OS
+    os: "openbsd"
+    os_version: "7.6"
+    iso: "install76.iso"
+    ostype: "other"
+    
+    # Purpose
+    purpose:
+      - "digital_forensics"
+      - "incident_response"
+      - "evidence_handling"
+    
+    # Firewall (pf)
+    pf_enabled: true
+    pf_rules: "strict"
+    
+    # Tailscale
+    tailscale_enabled: true
+    tailscale_hostname: "openbsd-ir"
+    
+    # Backup
+    backup: true
+    backup_schedule: "daily"
+    backup_encryption: true
+  
+  # ─────────────────────────────────────────────────────────────────────
+  # VM 160: OpenBSD Vault - Air-Gapped Crypto Vault
+  # ─────────────────────────────────────────────────────────────────────
+  openbsd_vault:
+    vm_id: 160
+    name: "openbsd-vault"
+    hostname: "openbsd-vault.lab.local"
+    
+    # Resources
+    cores: 2
+    memory: 4096  # 4GB
+    
+    # Storage: EXTERNAL USB (Samsung T9)
+    disk:
+      type: "external"
+      device: "samsung_t9"
+      size: 1024  # 1TB external SSD
+      encrypted: true
+      encryption: "bioctl_softraid"
+    
+    # Network: NONE (air-gapped)
+    network_enabled: false
+    vlan: 60  # Assigned but no network interface
+    
+    # OS
+    os: "openbsd"
+    os_version: "7.6"
+    iso: "install76.iso"
+    ostype: "other"
+    
+    # USB passthrough
+    usb:
+      enabled: true
+      vendor_id: "04e8"  # Samsung
+      product_id: "61f5"  # T9 SSD
+    
+    # Purpose
+    purpose:
+      - "key_generation"
+      - "code_signing"
+      - "cold_storage"
+      - "offline_encryption"
+    
+    # Boot settings
+    boot: "order=usb0"  # Boot from external USB
+    onboot: false  # Never auto-start
+    
+    # Firewall
+    pf_enabled: true
+    pf_rules: "deny_all"
+    
+    # Tailscale
+    tailscale_enabled: false  # NEVER enable
+    
+    # Backup
+    backup: false  # Backed up separately (physical T9 cloning)
+  
+  # ─────────────────────────────────────────────────────────────────────
+  # VM 163: OpenBSD Network Lab
+  # ─────────────────────────────────────────────────────────────────────
+  openbsd_network:
+    vm_id: 163
+    name: "openbsd-network"
+    hostname: "openbsd-network.lab.local"
+    
+    # Resources
+    cores: 2
+    memory: 4096  # 4GB
+    
+    # Storage
+    disk:
+      size: 100
+      storage: "bulk-pool-2"
+      format: "raw"
+    
+    # Network
+    vlan: 63
+    ip_address: "172.16.63.20/24"
+    gateway: "172.16.63.1"
+    
+    # OS
+    os: "openbsd"
+    os_version: "7.6"
+    iso: "install76.iso"
+    ostype: "other"
+    
+    # Purpose
+    purpose:
+      - "network_research"
+      - "pf_testing"
+      - "protocol_development"
+      - "vpn_experiments"
+    
+    # Firewall
+    pf_enabled: true
+    
+    # Tailscale
+    tailscale_enabled: true
+    tailscale_hostname: "openbsd-network"
+    
+    # Backup
+    backup: true
+    backup_schedule: "weekly"
+  
+  # ─────────────────────────────────────────────────────────────────────
+  # VM 101: Jump Box - Management Bastion
+  # ─────────────────────────────────────────────────────────────────────
+  jump_box:
+    vm_id: 101
+    name: "jump-box"
+    hostname: "jump-box.lab.local"
+    
+    # Resources
+    cores: 2
+    memory: 2048  # 2GB
+    
+    # Storage
+    disk:
+      size: 50
+      storage: "performance"
+      format: "raw"
+    
+    # Network
+    vlan: 1  # Management VLAN
+    ip_address: "172.16.2.20/24"
+    gateway: "172.16.2.1"
+    
+    # OS
+    os: "debian"
+    os_version: "12"
+    iso: "debian-12-amd64-netinst.iso"
+    
+    # Purpose
+    purpose:
+      - "ssh_bastion"
+      - "centralized_management"
+      - "audit_logging"
+    
+    # Boot priority
+    onboot: true  # Always available for management
+    
+    # Tailscale
+    tailscale_enabled: true
+    tailscale_hostname: "jump-box"
+    
+    # Backup
+    backup: true
+    backup_schedule: "daily"
+
+# ───────────────────────────────────────────────────────────────────────
+# VM RESOURCE SUMMARY
+# ───────────────────────────────────────────────────────────────────────
+resource_summary:
+  total_vcpus: 30
+  total_ram_mb: 57344  # 56GB
+  total_disk_gb: 2974  # ~3TB (excluding external T9)
+  
+  # By priority
+  always_running:
+    vms:
+      - "security-onion"
+      - "jump-box"
+    vcpus: 8
+    ram_mb: 14336  # 14GB
+  
+  development_hours:
+    vms:
+      - "blackarch"
+    vcpus: 8
+    ram_mb: 16384  # 16GB
+  
+  on_demand:
+    vms:
+      - "rocky-linux"
+      - "remnux"
+      - "openbsd-ir"
+      - "openbsd-network"
+    vcpus: 12
+    ram_mb: 28672  # 28GB
+  
+  rarely:
+    vms:
+      - "openbsd-vault"
+    vcpus: 2
+    ram_mb: 4096  # 4GB
+
+# ───────────────────────────────────────────────────────────────────────
+# COMMON VM CONFIGURATION
+# ───────────────────────────────────────────────────────────────────────
+common_vm_config:
+  # SSH settings
+  ssh_port: 22
+  ssh_key_based_auth: true
+  ssh_password_auth: false
+  
+  # Users
+  default_user: "admin"
+  default_groups:
+    - "sudo"
+    - "wheel"
+  
+  # Packages (install on all VMs)
+  common_packages:
+    - "vim"
+    - "tmux"
+    - "htop"
+    - "curl"
+    - "wget"
+    - "git"
+    - "net-tools"
+    - "tcpdump"
+  
+  # Logging
+  remote_syslog: true
+  syslog_server: "172.16.10.10"  # Security Onion
+  syslog_port: 514
+  
+  # Time sync
+  ntp_enabled: true
+  ntp_servers:
+    - "172.16.2.1"  # OPNsense
+    - "0.pool.ntp.org"
+  
+  # Security
+  firewall_enabled: true
+  fail2ban_enabled: true
+  unattended_upgrades: true
+
+# ───────────────────────────────────────────────────────────────────────
+# SNAPSHOT POLICIES
+# ───────────────────────────────────────────────────────────────────────
+snapshot_policies:
+  # Critical: Snapshot before risky operations
+  critical:
+    vms:
+      - "remnux"
+      - "blackarch"
+      - "openbsd-ir"
+    retention: 7
+    schedule: "before_use"
+  
+  # Regular: Daily snapshots
+  regular:
+    vms:
+      - "security-onion"
+      - "jump-box"
+    retention: 3
+    schedule: "daily"
+  
+  # Development: Weekly snapshots
+  development:
+    vms:
+      - "openbsd-network"
+      - "rocky-linux"
+    retention: 2
+    schedule: "weekly"
+
+# ───────────────────────────────────────────────────────────────────────
+# NOTES
+# ───────────────────────────────────────────────────────────────────────
+notes: |
+  VM Resource Allocation Strategy:
+  
+  Total Available:
+  - CPU: 6 cores / 12 threads
+  - RAM: 64GB (56GB for VMs, 8GB for host)
+  - Storage: 4TB across ZFS pools
+  
+  Overcommit Strategy:
+  - Not all VMs run simultaneously
+  - IO-bound workloads don't saturate CPU
+  - RAM is tight, monitor usage carefully
+  
+  Typical Running Configuration:
+  - Always: Security Onion (6 vCPU, 12GB) + Jump Box (2 vCPU, 2GB)
+  - Development: + BlackArch (8 vCPU, 16GB) = 16 vCPU, 30GB RAM
+  - Analysis: + REMnux (4 vCPU, 8GB) + OpenBSD IR (4 vCPU, 10GB)
+  - Total when all running: 30 vCPU, 56GB RAM (tight but manageable)
+  
+  Critical VMs (Always Keep Snapshots):
+  - REMnux: Before ANY malware analysis
+  - BlackArch: Before major system changes
+  - OpenBSD IR: Before processing new evidence
+  - OpenBSD Vault: Never snapshot (external storage)
+  
+  Air-Gapped Systems:
+  - OpenBSD Vault: NEVER connect to network
+  - REMnux: NEVER enable internet access
